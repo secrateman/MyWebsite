@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Management - Blue Theme</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #E0F7FA; /* Light Blue */
+            color: #01579B; /* Dark Blue */
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #0288D1; /* Blue */
+            color: #FFF;
+            padding: 20px;
+            text-align: center;
+        }
+        main {
+            padding: 20px;
+        }
+        .card {
+            background-color: #FFF;
+            border: 1px solid #81D4FA; /* Light Blue Border */
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .card h2 {
+            margin-top: 0;
+            color: #0277BD; /* Medium Blue */
+        }
+        .button {
+            background-color: #0288D1; /* Blue */
+            color: #FFF;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .button:hover {
+            background-color: #0277BD; /* Medium Blue */
+        }
+        .search-bar {
+            margin-bottom: 20px;
+            padding: 10px;
+            width: 100%;
+            border: 1px solid #81D4FA;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .inventory-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .inventory-item {
+            background-color: #FFF;
+            border: 1px solid #81D4FA; /* Light Blue Border */
+            border-radius: 8px;
+            padding: 20px;
+            width: calc(33% - 20px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        .inventory-item h3 {
+            margin-top: 0;
+            color: #0277BD; /* Medium Blue */
+        }
+        .inventory-item p {
+            margin: 5px 0;
+        }
+        .inventory-item img {
+            width: 100%;
+            height: auto;
+            margin-top: 10px;
+            border-radius: 8px;
+        }
+        .delete-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #FF5252; /* Red */
+            color: #FFF;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .delete-button:hover {
+            background-color: #D32F2F; /* Dark Red */
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Stock Management</h1>
+    </header>
+    <main>
+        <div class="card">
+            <h2>Add New Product</h2>
+            <form id="addProductForm">
+                <label for="productName">Product Name:</label><br>
+                <input type="text" id="productName" name="productName" required><br><br>
+
+                <label for="stock">Initial Stock:</label><br>
+                <input type="number" id="stock" name="stock" required><br><br>
+
+                <label for="productImage">Product Image:</label><br>
+                <input type="file" id="productImage" name="productImage" accept="image/*" required><br><br>
+
+                <button type="button" class="button" onclick="addProduct()">Add Product</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Update Stock</h2>
+            <form id="updateStockForm">
+                <label for="updateProductName">Product Name:</label><br>
+                <select id="updateProductName" name="updateProductName" required>
+                    <!-- Options will be dynamically populated -->
+                </select><br><br>
+
+                <label for="updateType">Update Type:</label><br>
+                <select id="updateType" name="updateType" required>
+                    <option value="add">Add Stock</option>
+                    <option value="subtract">Sell Stock</option>
+                </select><br><br>
+
+                <label for="updateAmount">Amount:</label><br>
+                <input type="number" id="updateAmount" name="updateAmount" required><br><br>
+
+                <button type="button" class="button" onclick="updateStock()">Update Stock</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Product Inventory</h2>
+            <input type="text" id="searchBar" class="search-bar" placeholder="Search products..." oninput="filterInventory()">
+            <div class="inventory-container" id="inventoryContainer">
+                <!-- Inventory items will be dynamically added here -->
+            </div>
+            <button class="button" onclick="exportToExcel()">Export to Excel</button>
+        </div>
+    </main>
+
+    <script>
+        const inventoryData = JSON.parse(localStorage.getItem('inventoryData')) || [];
+        const inventoryContainer = document.getElementById('inventoryContainer');
+        const updateProductNameSelect = document.getElementById('updateProductName');
+        const searchBar = document.getElementById('searchBar');
+
+        function saveToLocalStorage() {
+            localStorage.setItem('inventoryData', JSON.stringify(inventoryData));
+        }
+
+        function addProduct() {
+            const productName = document.getElementById('productName').value;
+            const stock = document.getElementById('stock').value;
+            const productImage = document.getElementById('productImage').files[0];
+            const currentDate = new Date().toLocaleString();
+
+            if (productName && stock && productImage) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const product = { productName, stock, lastUpdate: currentDate, image: e.target.result };
+                    inventoryData.push(product);
+                    saveToLocalStorage();
+
+                    renderInventory();
+
+                    const option = document.createElement('option');
+                    option.value = productName;
+                    option.textContent = productName;
+                    updateProductNameSelect.appendChild(option);
+
+                    document.getElementById('addProductForm').reset();
+                };
+                reader.readAsDataURL(productImage);
+            } else {
+                alert('Please fill out all fields.');
+            }
+        }
+
+        function deleteProduct(productName) {
+            if (confirm(`Are you sure you want to delete ${productName}?`)) {
+                const index = inventoryData.findIndex(p => p.productName === productName);
+                if (index !== -1) {
+                    inventoryData.splice(index, 1);
+                    saveToLocalStorage();
+                    renderInventory();
+                }
+            }
+        }
+
+        function updateStock() {
+            const updateProductName = document.getElementById('updateProductName').value;
+            const updateType = document.getElementById('updateType').value;
+            const updateAmount = parseInt(document.getElementById('updateAmount').value);
+            const currentDate = new Date().toLocaleString();
+
+            if (updateProductName && updateType && updateAmount) {
+                const product = inventoryData.find(p => p.productName === updateProductName);
+
+                if (product) {
+                    if (updateType === 'add') {
+                        product.stock = parseInt(product.stock) + updateAmount;
+                    } else if (updateType === 'subtract') {
+                        if (product.stock >= updateAmount) {
+                            product.stock = parseInt(product.stock) - updateAmount;
+                        } else {
+                            alert('Insufficient stock to complete the transaction.');
+                            return;
+                        }
+                    }
+                    product.lastUpdate = currentDate;
+                    saveToLocalStorage();
+                    renderInventory();
+                } else {
+                    alert('Product not found.');
+                }
+
+                document.getElementById('updateStockForm').reset();
+            } else {
+                alert('Please fill out all fields.');
+            }
+        }
+
+        function renderInventory() {
+            inventoryContainer.innerHTML = '';
+            inventoryData.forEach(product => {
+                const item = document.createElement('div');
+                item.className = 'inventory-item';
+                item.innerHTML = `
+                    <h3>${product.productName}</h3>
+                    <p><strong>Stock:</strong> ${product.stock}</p>
+                    <p><strong>Last Update:</strong> ${product.lastUpdate}</p>
+                    <img src="${product.image}" alt="${product.productName}">
+                    <button class="delete-button" onclick="deleteProduct('${product.productName}')">Delete</button>
+                `;
+                inventoryContainer.appendChild(item);
+            });
+        }
+
+        function filterInventory() {
+            const searchTerm = searchBar.value.toLowerCase();
+            const filteredData = inventoryData.filter(product => product.productName.toLowerCase().includes(searchTerm));
+            inventoryContainer.innerHTML = '';
+            filteredData.forEach(product => {
+                const item = document.createElement('div');
+                item.className = 'inventory-item';
+                item.innerHTML = `
+                    <h3>${product.productName}</h3>
+                    <p><strong>Stock:</strong> ${product.stock}</p>
+                    <p><strong>Last Update:</strong> ${product.lastUpdate}</p>
+                    <img src="${product.image}" alt="${product.productName}">
+                    <button class="delete-button" onclick="deleteProduct('${product.productName}')">Delete</button>
+                `;
+                inventoryContainer.appendChild(item);
+            });
+        }
+
+        function exportToExcel() {
+            const worksheet = XLSX.utils.json_to_sheet(inventoryData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventory');
+            XLSX.writeFile(workbook, 'ProductInventory.xlsx');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderInventory();
+        });
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+</body>
+</html>
